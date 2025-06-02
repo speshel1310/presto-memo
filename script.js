@@ -151,35 +151,61 @@ class MemoryGame {
         const promoCode = document.getElementById('promo-code');
         const notification = document.getElementById('copy-notification');
         
+        function fallbackCopyTextToClipboard(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            let success = false;
+            try {
+                success = document.execCommand('copy');
+            } catch (err) {
+                success = false;
+            }
+            document.body.removeChild(textArea);
+            return success;
+        }
+        
         if (promoCode) {
             promoCode.addEventListener('click', () => {
                 const textToCopy = promoCode.textContent;
-                
                 // Метрика клика по промокоду
                 this.sendMetric('promo_code_copy_clicked');
-                
-                // Если есть время победы, отправляем время до клика
                 if (this.winTime) {
                     const timeToClick = Date.now() - this.winTime;
                     this.sendMetric('time_to_promo_code_click', { milliseconds: timeToClick });
                 }
-                
                 // Копируем текст в буфер обмена
                 navigator.clipboard.writeText(textToCopy)
                     .then(() => {
-                        // Показываем уведомление
+                        notification.textContent = 'Скопировано!';
                         notification.classList.add('show');
-                        
-                        // Метрика успешного копирования
                         this.sendMetric('promo_code_copied_success');
-                        
-                        // Скрываем уведомление через 2 секунды
                         setTimeout(() => {
                             notification.classList.remove('show');
+                            notification.textContent = 'Скопировано!';
                         }, 2000);
                     })
-                    .catch(err => {
-                        console.error('Не удалось скопировать текст: ', err);
+                    .catch(() => {
+                        // Fallback через execCommand
+                        const fallbackSuccess = fallbackCopyTextToClipboard(textToCopy);
+                        if (fallbackSuccess) {
+                            notification.textContent = 'Скопировано!';
+                            notification.classList.add('show');
+                            this.sendMetric('promo_code_copied_success_fallback');
+                            setTimeout(() => {
+                                notification.classList.remove('show');
+                                notification.textContent = 'Скопировано!';
+                            }, 2000);
+                        } else {
+                            notification.textContent = 'Не удалось скопировать';
+                            notification.classList.add('show');
+                            setTimeout(() => {
+                                notification.classList.remove('show');
+                                notification.textContent = 'Скопировано!';
+                            }, 2000);
+                        }
                     });
             });
         }
